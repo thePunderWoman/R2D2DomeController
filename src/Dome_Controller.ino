@@ -956,6 +956,8 @@ void runCommand(const char* cmd)
     toggleMuse();
   } else if (strcmp(cmd, "FLUTTER") == 0) {
     flutter();
+  } else if (strcmp(cmd, "OVERLOAD") == 0) {
+    overload();
   } else {
     digitalWrite(STATUS_LED, LOW);
   }
