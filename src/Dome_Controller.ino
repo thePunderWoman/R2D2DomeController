@@ -88,8 +88,8 @@ bool LowOpen=false;
 bool OpenClose=false;
 
 void sendToBody(const char* cmd) {
-  COMMAND_SERIAL.print("BD:");
-  COMMAND_SERIAL.println(cmd);
+  String full = String("BD:") + cmd;
+  COMMAND_SERIAL.println(full);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -594,7 +594,7 @@ void scream() {
   COMMAND_SERIAL.println("*HN03");   // T106 - top HP wag U/D - nod is closest equivalent
   COMMAND_SERIAL.println("4T5");
   COMMAND_SERIAL.println("5T5");
-  COMMAND_SERIAL.println("@0T4");
+  COMMAND_SERIAL.println("0T4");
   sendToBody("SCREAM");
 
   // TODO: Add dome servo animations
@@ -739,9 +739,9 @@ void overload() {
   COMMAND_SERIAL.println("*HPS701"); // A007C - short circuit all HPs (front)
   COMMAND_SERIAL.println("*HPS702"); // A007C - short circuit all HPs (rear)
   COMMAND_SERIAL.println("*HPS703"); // A007C - short circuit all HPs (top)
-  COMMAND_SERIAL.println("4T4");
-  COMMAND_SERIAL.println("5T4");
-  COMMAND_SERIAL.println("@0T4");
+  COMMAND_SERIAL.println("4T4"); // PSI Pro
+  COMMAND_SERIAL.println("5T4"); // PSO Pro
+  COMMAND_SERIAL.println("0T4"); // astropixels
   sendToBody("OVERLOAD");
 
   COMMAND_SERIAL.println("Overload Sequence: Complete");
@@ -757,7 +757,7 @@ void heart() {
   COMMAND_SERIAL.println("*HPS603"); // A006|10 - (top)
   scheduleHoloReset(10);
   COMMAND_SERIAL.println("4T7");
-  COMMAND_SERIAL.println("@1MYou're\rWonderful");
+  COMMAND_SERIAL.println("@1MYou're Wonderful");
 
   COMMAND_SERIAL.println("Heart: Complete");
   digitalWrite(STATUS_LED, LOW);
@@ -766,8 +766,10 @@ void heart() {
 void helloThere() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.print("Hello There: Start");
+  COMMAND_SERIAL.println("@1MHello");
+  COMMAND_SERIAL.println("@2MThere");
+  COMMAND_SERIAL.println("@3MGeneral Kenobi");
   sendToBody("HELLO");
-  COMMAND_SERIAL.println("@1MHello\rThere");
 
   Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
   Servos[P1].attach(P1_SERVO_PIN);
@@ -793,14 +795,12 @@ void leiaMode() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.print("Leia Sequence: Start");
 
-  COMMAND_SERIAL.println("*HP001");  // S1 - front HP to down position
-  COMMAND_SERIAL.println("*HPS101"); // S1 - front HP Leia LED sequence
-  COMMAND_SERIAL.println("*OF02");   // S1 - rear HP off
-  COMMAND_SERIAL.println("*OF03");   // S1 - top HP off
-  scheduleHoloReset(36);
-  COMMAND_SERIAL.println("4T6|36");
-  COMMAND_SERIAL.println("5T6|36");
-  COMMAND_SERIAL.println("@0T6");
+  COMMAND_SERIAL.println("@HPS101|36"); // S1 - front HP Leia LED sequence
+  COMMAND_SERIAL.println("*OF02|36");   // S1 - rear HP off
+  COMMAND_SERIAL.println("*OF03|36");   // S1 - top HP off
+  COMMAND_SERIAL.println("4T6|36"); // PSI Pro
+  COMMAND_SERIAL.println("5T6|36"); // PSI Pro
+  COMMAND_SERIAL.println("0T6|36");    // Astropixels Pro
   sendToBody("LEIA");
   delay(500);
 
@@ -822,7 +822,7 @@ void resetHolos() {
 }
 
 void resetLogics() {
-  COMMAND_SERIAL.println("@0T1");
+  COMMAND_SERIAL.println("0T1");
   COMMAND_SERIAL.print("Astropixels reset");
 }
 
