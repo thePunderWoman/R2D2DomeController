@@ -110,8 +110,8 @@ void setup() {
 
   COMMAND_SERIAL.println("Ready for serial commands (prefix: DM:)");
 
-  // Schedule first random holo move 30–120 seconds from now
-  randomHoloNextAt = millis() + random(30000, 120001);
+  // Schedule first random holo move after 2 seconds
+  randomHoloNextAt = millis() + 2000;
 }
 
 //------------------------------------------------------
@@ -600,7 +600,7 @@ void flutter() {
   Servos[P11].detach();
   Servos[P13].detach();
 
-  COMMAND_SERIAL.println("Scream Sequence: Complete");
+  COMMAND_SERIAL.println("Flutter Sequence: Complete");
   digitalWrite(STATUS_LED, LOW);
 }
 
@@ -608,12 +608,10 @@ void scream() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Scream Sequence: Start");
 
-  COMMAND_SERIAL.println("*HPS701"); // A007C - short circuit all HPs (front)
-  COMMAND_SERIAL.println("*HPS702"); // A007C - short circuit all HPs (rear)
-  COMMAND_SERIAL.println("*HPS703"); // A007C - short circuit all HPs (top)
-  COMMAND_SERIAL.println("*HN01");   // X105 - front+rear wag L/R - no wag in AstroPixelsPlus, using random move
-  COMMAND_SERIAL.println("*HN02");   // X105 - (rear)
-  COMMAND_SERIAL.println("*HN03");   // T106 - top HP wag U/D - nod is closest equivalent
+  COMMAND_SERIAL.println("*SC00"); // A007C - short circuit all HPs (front)
+  COMMAND_SERIAL.println("*HW01"); // Wags the holoprojectors 5 times
+  COMMAND_SERIAL.println("*HW02");
+  COMMAND_SERIAL.println("*HW03");
   COMMAND_SERIAL.println("4T5");
   COMMAND_SERIAL.println("5T5");
   COMMAND_SERIAL.println("0T4");
@@ -839,7 +837,7 @@ void toggleMuse() {
 }
 
 void resetHolos() {
-  COMMAND_SERIAL.println("*ST00");
+  COMMAND_SERIAL.println("*RL00");
   COMMAND_SERIAL.println("Holo Projectors reset");
 }
 
@@ -966,8 +964,6 @@ void runCommand(const char* cmd)
     flutter();
   } else if (strcmp(cmd, "OVERLOAD") == 0) {
     overload();
-  } else {
-    digitalWrite(STATUS_LED, LOW);
   }
 }
 
