@@ -13,8 +13,16 @@
 #define COMMAND_SERIAL Serial
 #define COMMAND_BAUD   9600
 
-unsigned long loopTime;    // Time variable
-unsigned long holoResetAt; // Non-blocking holo reset timer (0 = inactive)
+unsigned long randomHoloNextAt; // When to next call randomHoloMove() (millis)
+
+typedef void (*ScheduledFn)();
+ScheduledFn scheduledCallback = nullptr;
+unsigned long scheduledCallAt  = 0;
+
+void callAfterDuration(ScheduledFn fn, unsigned long seconds) {
+  scheduledCallback = fn;
+  scheduledCallAt   = millis() + seconds * 1000;
+}
 
 #define STATUS_LED 13
 
@@ -101,6 +109,9 @@ void setup() {
   digitalWrite(STATUS_LED, LOW);
 
   COMMAND_SERIAL.println("Ready for serial commands (prefix: DM:)");
+
+  // Schedule first random holo move 30–120 seconds from now
+  randomHoloNextAt = millis() + random(30000, 120001);
 }
 
 //------------------------------------------------------
@@ -141,7 +152,7 @@ void OpenClosePies() {  // Note: This may seem backwards but the Close command (
     digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
     //Open or close  All Pie Panels, each command will trigger an open or close command
     
-    COMMAND_SERIAL.print("Pie Panels:");
+    COMMAND_SERIAL.println("Pie Panels:");
     
     if (PiesOpen) { // Close the Pie Panels if PiesOpen is true
       COMMAND_SERIAL.println("Closing");
@@ -240,7 +251,7 @@ void OpenCloseLow() {
    
     //Open or close  Low Panels
     
-    COMMAND_SERIAL.print("Low Panels: ");
+    COMMAND_SERIAL.println("Low Panels: ");
     if (LowOpen) { // Close the Low Panels
       COMMAND_SERIAL.println("Closing");   
       LowOpen=false;
@@ -364,7 +375,7 @@ void OpenCloseAll () {
     digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
     //Open or close  All Panels
 
-    COMMAND_SERIAL.print("All Panels: ");
+    COMMAND_SERIAL.println("All Panels: ");
     
     if (AllOpen) { // Close all panels
       COMMAND_SERIAL.println("Closing");
@@ -511,9 +522,20 @@ void OpenCloseAll () {
     digitalWrite(STATUS_LED, LOW);
 }
 
+void randomHoloMove() {
+  digitalWrite(STATUS_LED, HIGH);
+  COMMAND_SERIAL.println("Randomly Moving Holos");
+
+  COMMAND_SERIAL.println("*RD01");
+  COMMAND_SERIAL.println("*RD02");
+  COMMAND_SERIAL.println("*RD03");
+
+  digitalWrite(STATUS_LED, LOW);
+}
+
 void flutter() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.print("Flutter Sequence: Start");
+  COMMAND_SERIAL.println("Flutter Sequence: Start");
 
   Servos[PP1].attach(PP1_SERVO_PIN);
   Servos[PP2].attach(PP2_SERVO_PIN);
@@ -584,13 +606,13 @@ void flutter() {
 
 void scream() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.print("Scream Sequence: Start");
+  COMMAND_SERIAL.println("Scream Sequence: Start");
 
   COMMAND_SERIAL.println("*HPS701"); // A007C - short circuit all HPs (front)
   COMMAND_SERIAL.println("*HPS702"); // A007C - short circuit all HPs (rear)
   COMMAND_SERIAL.println("*HPS703"); // A007C - short circuit all HPs (top)
-  COMMAND_SERIAL.println("*RD01");   // X105 - front+rear wag L/R - no wag in AstroPixelsPlus, using random move
-  COMMAND_SERIAL.println("*RD02");   // X105 - (rear)
+  COMMAND_SERIAL.println("*HN01");   // X105 - front+rear wag L/R - no wag in AstroPixelsPlus, using random move
+  COMMAND_SERIAL.println("*HN02");   // X105 - (rear)
   COMMAND_SERIAL.println("*HN03");   // T106 - top HP wag U/D - nod is closest equivalent
   COMMAND_SERIAL.println("4T5");
   COMMAND_SERIAL.println("5T5");
@@ -734,7 +756,7 @@ void scream() {
 
 void overload() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.print("Overload Sequence: Start");
+  COMMAND_SERIAL.println("Overload Sequence: Start");
 
   COMMAND_SERIAL.println("*HPS701"); // A007C - short circuit all HPs (front)
   COMMAND_SERIAL.println("*HPS702"); // A007C - short circuit all HPs (rear)
@@ -750,14 +772,15 @@ void overload() {
 
 void heart() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.print("Heart: Start");
+  COMMAND_SERIAL.println("Heart: Start");
 
-  COMMAND_SERIAL.println("*HPS601"); // A006|10 - rainbow all HPs (front)
-  COMMAND_SERIAL.println("*HPS602"); // A006|10 - (rear)
-  COMMAND_SERIAL.println("*HPS603"); // A006|10 - (top)
-  scheduleHoloReset(10);
+  COMMAND_SERIAL.println("*HPS601"); // rainbow all HPs (front)
+  COMMAND_SERIAL.println("*HPS602"); // (rear)
+  COMMAND_SERIAL.println("*HPS603"); // (top)
   COMMAND_SERIAL.println("4T7");
   COMMAND_SERIAL.println("@1MYou're Wonderful");
+
+  callAfterDuration(resetHolos, 10);
 
   COMMAND_SERIAL.println("Heart: Complete");
   digitalWrite(STATUS_LED, LOW);
@@ -765,7 +788,7 @@ void heart() {
 
 void helloThere() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.print("Hello There: Start");
+  COMMAND_SERIAL.println("Hello There: Start");
   COMMAND_SERIAL.println("@1MHello");
   COMMAND_SERIAL.println("@2MThere");
   COMMAND_SERIAL.println("@3MGeneral Kenobi");
@@ -793,7 +816,7 @@ void helloThere() {
 // Trigger the Leia sequence
 void leiaMode() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.print("Leia Sequence: Start");
+  COMMAND_SERIAL.println("Leia Sequence: Start");
 
   COMMAND_SERIAL.println("@HPS101|36"); // S1 - front HP Leia LED sequence
   COMMAND_SERIAL.println("*OF02|36");   // S1 - rear HP off
@@ -810,31 +833,30 @@ void leiaMode() {
 
 void toggleMuse() {
   digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.print("Toggling muse");
+  COMMAND_SERIAL.println("Toggling muse");
   sendToBody("MUSE");
   digitalWrite(STATUS_LED, LOW);
 }
 
 void resetHolos() {
-  clearHoloTimer();
   COMMAND_SERIAL.println("*ST00");
-  COMMAND_SERIAL.print("Holo Projectors reset");
+  COMMAND_SERIAL.println("Holo Projectors reset");
 }
 
 void resetLogics() {
   COMMAND_SERIAL.println("0T1");
-  COMMAND_SERIAL.print("Astropixels reset");
+  COMMAND_SERIAL.println("Astropixels reset");
 }
 
 void resetPSIs() {
   COMMAND_SERIAL.println("4T1");
   COMMAND_SERIAL.println("5T1");
-  COMMAND_SERIAL.print("PSI Pros reset");
+  COMMAND_SERIAL.println("PSI Pros reset");
 }
 
 void resetBody() {
   sendToBody("RESET");
-  COMMAND_SERIAL.print("Body controller reset");
+  COMMAND_SERIAL.println("Body controller reset");
 }
 
 //RESET SERVOS, HOLOS, MAGIC PANEL  ================================================================================================
@@ -896,7 +918,7 @@ void resetAll() {
   Servos[P11].detach();
   Servos[P13].detach();
 
-  COMMAND_SERIAL.print("Dome Panels Closed,Reset");
+  COMMAND_SERIAL.println("Dome Panels Closed,Reset");
 
   resetHolos();
   resetLogics();
@@ -916,24 +938,10 @@ void waitTime(unsigned long waitTime)
   {}// do nothing
 }
 
-void scheduleHoloReset(unsigned long seconds) {
-  holoResetAt = millis() + seconds * 1000UL;
-}
-
-void clearHoloTimer() {
-  holoResetAt = 0;
-}
-
-void checkHoloReset() {
-  if (holoResetAt > 0 && millis() >= holoResetAt) {
-    holoResetAt = 0;
-    resetHolos();
-  }
-}
 
 void runCommand(const char* cmd)
 {
-  COMMAND_SERIAL.print("Serial command: ");
+  COMMAND_SERIAL.println("Serial command: ");
   COMMAND_SERIAL.println(cmd);
 
   if (strcmp(cmd, "RESET") == 0) {
@@ -969,5 +977,17 @@ void runCommand(const char* cmd)
 
 void loop() {
   readSerial();
-  checkHoloReset();
+
+  // Fire any scheduled callback
+  if (scheduledCallback != nullptr && millis() >= scheduledCallAt) {
+    ScheduledFn fn = scheduledCallback;
+    scheduledCallback = nullptr;
+    fn();
+  }
+
+// Periodically call randomHoloMove() only when no sequence is running
+  if (millis() >= randomHoloNextAt && digitalRead(STATUS_LED) == LOW) {
+    randomHoloMove();
+    randomHoloNextAt = millis() + random(30000, 120001);
+  }
 }
