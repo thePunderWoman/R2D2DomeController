@@ -24,7 +24,7 @@ void callAfterDuration(ScheduledFn fn, unsigned long seconds) {
   scheduledCallAt   = millis() + seconds * 1000;
 }
 
-#define STATUS_LED 13
+bool sequenceRunning = false;
 
 // Dome panel names for our Arduino pins, USE THESE PHYSICAL PINS FOR SPECIFIC DOME SERVO
 // Board Pins #2-#13. Panels marked based on Club Spec Panel numbering. PP=Pie Panels, P=Lower Panels, DT=Dome Topper
@@ -105,8 +105,7 @@ void setup() {
   COMMAND_SERIAL.begin(COMMAND_BAUD);   // Start serial port for incoming commands
 
   COMMAND_SERIAL.println("Stealth Dome Servo Expander");
-  pinMode(STATUS_LED, OUTPUT);
-  digitalWrite(STATUS_LED, LOW);
+  sequenceRunning = false;
 
   COMMAND_SERIAL.println("Ready for serial commands (prefix: DM:)");
 
@@ -149,7 +148,7 @@ void readSerial() {
 
 void OpenClosePies() {  // Note: This may seem backwards but the Close command ("if") is first and then the Open ("else")second, see Arduino reference guide
 
-    digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+    sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
     //Open or close  All Pie Panels, each command will trigger an open or close command
     
     COMMAND_SERIAL.println("Pie Panels:");
@@ -239,7 +238,7 @@ void OpenClosePies() {  // Note: This may seem backwards but the Close command (
     }
     // end "for" loop
     
-    digitalWrite(STATUS_LED, LOW);
+    sequenceRunning = false;
 }
 
 
@@ -247,7 +246,7 @@ void OpenClosePies() {  // Note: This may seem backwards but the Close command (
 
 void OpenCloseLow() { 
 
-    digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+    sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
    
     //Open or close  Low Panels
     
@@ -301,14 +300,14 @@ void OpenCloseLow() {
       COMMAND_SERIAL.println("*RD01"); // F102 (Front HP RC L/R) - no RC equivalent in AstroPixelsPlus, using random move
 
       // attach servos
-      Servos[P1].attach(P1_SERVO_PIN);
-      Servos[P2].attach(P2_SERVO_PIN);
-      Servos[P3].attach(P3_SERVO_PIN);
-      Servos[P4].attach(P4_SERVO_PIN);
-      Servos[P7].attach(P7_SERVO_PIN);
-      Servos[P10].attach(P10_SERVO_PIN);
-      Servos[P11].attach(P11_SERVO_PIN);
-      Servos[P13].attach(P13_SERVO_PIN);
+      Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P2].attach(P2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P3].attach(P3_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P4].attach(P4_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P7].attach(P7_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P10].attach(P10_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
       
       sendToBody("HAPPY"); // Play happy vocalization
 
@@ -365,14 +364,14 @@ void OpenCloseLow() {
       
       COMMAND_SERIAL.println("Lows Opened");
     }
-    digitalWrite(STATUS_LED, LOW);
+    sequenceRunning = false;
 }
 
 //Open/Close All Panels////////////////////////////////////////////////////////////////////////////////////////////
 
 void OpenCloseAll () {
 
-    digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+    sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
     //Open or close  All Panels
 
     COMMAND_SERIAL.println("All Panels: ");
@@ -389,14 +388,14 @@ void OpenCloseAll () {
       Servos[PP5].attach(PP5_SERVO_PIN,PANEL_MIN,PANEL_MAX);
       Servos[PP6].attach(PP6_SERVO_PIN,PANEL_MIN,PANEL_MAX);
       // Servos[DT].attach(DT_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-      Servos[P1].attach(P1_SERVO_PIN);
-      Servos[P2].attach(P2_SERVO_PIN);
-      Servos[P3].attach(P3_SERVO_PIN);
-      Servos[P4].attach(P4_SERVO_PIN);
-      Servos[P7].attach(P7_SERVO_PIN);
-      Servos[P10].attach(P10_SERVO_PIN);
-      Servos[P11].attach(P11_SERVO_PIN);
-      Servos[P13].attach(P13_SERVO_PIN);
+      Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P2].attach(P2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P3].attach(P3_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P4].attach(P4_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P7].attach(P7_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P10].attach(P10_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+      Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
 
       // Write pies to close
 
@@ -519,37 +518,37 @@ void OpenCloseAll () {
       
       COMMAND_SERIAL.println("Opened All Dome");
     }
-    digitalWrite(STATUS_LED, LOW);
+    sequenceRunning = false;
 }
 
 void randomHoloMove() {
-  digitalWrite(STATUS_LED, HIGH);
+  sequenceRunning = true;
   COMMAND_SERIAL.println("Randomly Moving Holos");
 
   COMMAND_SERIAL.println("*RD01");
   COMMAND_SERIAL.println("*RD02");
   COMMAND_SERIAL.println("*RD03");
 
-  digitalWrite(STATUS_LED, LOW);
+  sequenceRunning = false;
 }
 
 void flutter() {
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Flutter Sequence: Start");
 
-  Servos[PP1].attach(PP1_SERVO_PIN);
-  Servos[PP2].attach(PP2_SERVO_PIN);
-  Servos[PP5].attach(PP5_SERVO_PIN);
-  Servos[PP6].attach(PP6_SERVO_PIN);
+  Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP2].attach(PP2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP5].attach(PP5_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP6].attach(PP6_SERVO_PIN,PANEL_MIN,PANEL_MAX);
   // Servos[DT].attach(DT_SERVO_PIN);
-  Servos[P1].attach(P1_SERVO_PIN);
-  Servos[P2].attach(P2_SERVO_PIN);
-  Servos[P3].attach(P3_SERVO_PIN);
-  Servos[P4].attach(P4_SERVO_PIN);
-  Servos[P7].attach(P7_SERVO_PIN);
-  Servos[P10].attach(P10_SERVO_PIN);
-  Servos[P11].attach(P11_SERVO_PIN);
-  Servos[P13].attach(P13_SERVO_PIN);
+  Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P2].attach(P2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P3].attach(P3_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P4].attach(P4_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P7].attach(P7_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P10].attach(P10_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
 
   Servos[P1].write(PANEL_TINYOPEN,LOWSPEED, true);
   Servos[P2].write(PANEL_TINYOPEN,LOWSPEED, true);
@@ -600,12 +599,16 @@ void flutter() {
   Servos[P11].detach();
   Servos[P13].detach();
 
+  PiesOpen = false;
+  AllOpen = false;
+  LowOpen = false;
+
   COMMAND_SERIAL.println("Flutter Sequence: Complete");
-  digitalWrite(STATUS_LED, LOW);
+  sequenceRunning = false;
 }
 
 void scream() {
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Scream Sequence: Start");
 
   COMMAND_SERIAL.println("*SC00"); // A007C - short circuit all HPs (front)
@@ -685,7 +688,7 @@ void scream() {
   COMMAND_SERIAL.println("Opened All Dome");
 
 
-  waitTime(2000); // wait 8 seconds before resetting
+  waitTime(2000); // wait 2 seconds before resetting
 
   COMMAND_SERIAL.println("Closing");
   AllOpen=false;     
@@ -698,14 +701,14 @@ void scream() {
   Servos[PP2].attach(PP2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
   Servos[PP5].attach(PP5_SERVO_PIN,PANEL_MIN,PANEL_MAX);
   Servos[PP6].attach(PP6_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P1].attach(P1_SERVO_PIN);
-  Servos[P2].attach(P2_SERVO_PIN);
-  Servos[P3].attach(P3_SERVO_PIN);
-  Servos[P4].attach(P4_SERVO_PIN);
-  Servos[P7].attach(P7_SERVO_PIN);
-  Servos[P10].attach(P10_SERVO_PIN);
-  Servos[P11].attach(P11_SERVO_PIN);
-  Servos[P13].attach(P13_SERVO_PIN);
+  Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P2].attach(P2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P3].attach(P3_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P4].attach(P4_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P7].attach(P7_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P10].attach(P10_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
 
   // Write pies to close
 
@@ -749,27 +752,25 @@ void scream() {
   resetPSIs();
 
   COMMAND_SERIAL.println("Scream Sequence: Complete");
-  digitalWrite(STATUS_LED, LOW); 
+  sequenceRunning = false; 
 }
 
 void overload() {
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Overload Sequence: Start");
 
-  COMMAND_SERIAL.println("*HPS701"); // A007C - short circuit all HPs (front)
-  COMMAND_SERIAL.println("*HPS702"); // A007C - short circuit all HPs (rear)
-  COMMAND_SERIAL.println("*HPS703"); // A007C - short circuit all HPs (top)
+  COMMAND_SERIAL.println("*SC00"); // A007C - short circuit all HPs (front)
   COMMAND_SERIAL.println("4T4"); // PSI Pro
   COMMAND_SERIAL.println("5T4"); // PSO Pro
   COMMAND_SERIAL.println("0T4"); // astropixels
   sendToBody("OVERLOAD");
 
   COMMAND_SERIAL.println("Overload Sequence: Complete");
-  digitalWrite(STATUS_LED, LOW); 
+  sequenceRunning = false; 
 }
 
 void heart() {
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Heart: Start");
 
   COMMAND_SERIAL.println("*HPS601"); // rainbow all HPs (front)
@@ -781,19 +782,18 @@ void heart() {
   callAfterDuration(resetHolos, 10);
 
   COMMAND_SERIAL.println("Heart: Complete");
-  digitalWrite(STATUS_LED, LOW);
+  sequenceRunning = false;
 }
 
 void helloThere() {
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Hello There: Start");
   COMMAND_SERIAL.println("@1MHello");
   COMMAND_SERIAL.println("@2MThere");
   COMMAND_SERIAL.println("@3MGeneral Kenobi");
   sendToBody("HELLO");
 
-  Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P1].attach(P1_SERVO_PIN);
+  Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
   Servos[P1].write(PANEL_OPEN,SLOWSPEED, true);
   delay(10);
   Servos[P1].write(PANEL_HALFWAY,SLOWSPEED, true);
@@ -805,15 +805,15 @@ void helloThere() {
   Servos[P1].write(PANEL_OPEN,SLOWSPEED, true);
   delay(10);
   Servos[P1].write(PANEL_CLOSE,SPEED, true);
-  Servos[PP1].detach();
+  Servos[P1].detach();
 
   COMMAND_SERIAL.println("Hello There: Complete");
-  digitalWrite(STATUS_LED, LOW); 
+  sequenceRunning = false; 
 }
 
 // Trigger the Leia sequence
 void leiaMode() {
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Leia Sequence: Start");
 
   COMMAND_SERIAL.println("@HPS101|36"); // S1 - front HP Leia LED sequence
@@ -826,14 +826,14 @@ void leiaMode() {
   delay(500);
 
   COMMAND_SERIAL.println("Leia Sequence: Complete");
-  digitalWrite(STATUS_LED, LOW);
+  sequenceRunning = false;
 }
 
 void toggleMuse() {
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board     
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
   COMMAND_SERIAL.println("Toggling muse");
   sendToBody("MUSE");
-  digitalWrite(STATUS_LED, LOW);
+  sequenceRunning = false;
 }
 
 void resetHolos() {
@@ -861,7 +861,7 @@ void resetBody() {
 
 void resetAll() {
 
-  digitalWrite(STATUS_LED, HIGH); // turn on STATUS LED so we can visually see we got the command on the board 
+  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board 
 
   COMMAND_SERIAL.println("Reset Dome Panels/Holos");
 
@@ -923,7 +923,7 @@ void resetAll() {
   resetPSIs();
   resetBody();
 
-  digitalWrite(STATUS_LED, LOW);
+  sequenceRunning = false;
 }
 
 //----------------------------------------------------------------------------
@@ -982,7 +982,7 @@ void loop() {
   }
 
 // Periodically call randomHoloMove() only when no sequence is running
-  if (millis() >= randomHoloNextAt && digitalRead(STATUS_LED) == LOW) {
+  if (millis() >= randomHoloNextAt && !sequenceRunning) {
     randomHoloMove();
     randomHoloNextAt = millis() + random(30000, 120001);
   }
