@@ -764,6 +764,7 @@ void overload() {
   COMMAND_SERIAL.println("5T4"); // PSO Pro
   COMMAND_SERIAL.println("0T4"); // astropixels
   sendToBody("OVERLOAD");
+  callAfterDuration(resetHolos, 15);
 
   COMMAND_SERIAL.println("Overload Sequence: Complete");
   sequenceRunning = false; 
