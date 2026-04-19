@@ -100,6 +100,36 @@ void sendToBody(const char* cmd) {
   COMMAND_SERIAL.println(full);
 }
 
+// Mark a sequence as running. `seconds` is the body's auto-expire safety timeout —
+// set it to the expected upper bound of the sequence duration. Body suppresses its
+// auto animations while seqon is active.
+void beginSequence(unsigned int seconds) {
+  sequenceRunning = true;
+  COMMAND_SERIAL.print("dome=seqon,");
+  COMMAND_SERIAL.println(seconds);
+}
+
+void endSequence() {
+  COMMAND_SERIAL.println("dome=seqoff");
+  sequenceRunning = false;
+}
+
+// Sine ease in-out (ported from ReelTwo ServoEasing.h): y = 0.5 * (1 - cos(pi*p))
+// Steps a group of servos from `from` to `to` over `durationMs` for an organic feel.
+void easeServosSineInOut(const uint8_t* indices, uint8_t count, int from, int to, unsigned int durationMs) {
+  const uint8_t steps = 30;
+  const unsigned int stepDelay = durationMs / steps;
+  for (uint8_t s = 0; s <= steps; s++) {
+    float p = (float)s / steps;
+    float eased = 0.5 * (1 - cos(p * M_PI));
+    int pos = from + (int)((to - from) * eased);
+    for (uint8_t i = 0; i < count; i++) {
+      Servos[indices[i]].write(pos);
+    }
+    delay(stepDelay);
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   COMMAND_SERIAL.begin(COMMAND_BAUD);   // Start serial port for incoming commands
@@ -148,9 +178,9 @@ void readSerial() {
 
 void OpenClosePies() {  // Note: This may seem backwards but the Close command ("if") is first and then the Open ("else")second, see Arduino reference guide
 
-    sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+    beginSequence(12);
     //Open or close  All Pie Panels, each command will trigger an open or close command
-    
+
     COMMAND_SERIAL.println("Pie Panels:");
     
     if (PiesOpen) { // Close the Pie Panels if PiesOpen is true
@@ -237,17 +267,17 @@ void OpenClosePies() {  // Note: This may seem backwards but the Close command (
       COMMAND_SERIAL.println("Opened Pies");
     }
     // end "for" loop
-    
-    sequenceRunning = false;
+
+    endSequence();
 }
 
 
 // Open/Close Low panels///////////////////////////////////////////////////////////////////////////////////
 
-void OpenCloseLow() { 
+void OpenCloseLow() {
 
-    sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
-   
+    beginSequence(15);
+
     //Open or close  Low Panels
     
     COMMAND_SERIAL.println("Low Panels: ");
@@ -364,14 +394,14 @@ void OpenCloseLow() {
       
       COMMAND_SERIAL.println("Lows Opened");
     }
-    sequenceRunning = false;
+    endSequence();
 }
 
 //Open/Close All Panels////////////////////////////////////////////////////////////////////////////////////////////
 
 void OpenCloseAll () {
 
-    sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+    beginSequence(10);
     //Open or close  All Panels
 
     COMMAND_SERIAL.println("All Panels: ");
@@ -518,7 +548,7 @@ void OpenCloseAll () {
       
       COMMAND_SERIAL.println("Opened All Dome");
     }
-    sequenceRunning = false;
+    endSequence();
 }
 
 void randomHoloMove() {
@@ -533,7 +563,7 @@ void randomHoloMove() {
 }
 
 void flutter() {
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+  beginSequence(10);
   COMMAND_SERIAL.println("Flutter Sequence: Start");
 
   Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
@@ -604,11 +634,56 @@ void flutter() {
   LowOpen = false;
 
   COMMAND_SERIAL.println("Flutter Sequence: Complete");
-  sequenceRunning = false;
+  endSequence();
+}
+
+void bloom() {
+  beginSequence(8);
+  COMMAND_SERIAL.println("Bloom Sequence: Start");
+
+  Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP2].attach(PP2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP5].attach(PP5_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP6].attach(PP6_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+
+  static const uint8_t pies[] = { PP1, PP2, PP5, PP6 };
+
+  // Open all 4 pies together with sine ease in-out
+  easeServosSineInOut(pies, 4, PANEL_CLOSE, PANEL_OPEN, 1200);
+
+  // Hold at top
+  delay(2000);
+
+  // Wiggle 3x around fully open
+  for (uint8_t i = 0; i < 3; i++) {
+    easeServosSineInOut(pies, 4, PANEL_OPEN, 1900, 180);
+    easeServosSineInOut(pies, 4, 1900, PANEL_OPEN, 180);
+  }
+
+  // Settle
+  delay(1000);
+
+  // Snap closed (no ease)
+  Servos[PP1].write(PANEL_CLOSE, SPEED, true);
+  Servos[PP2].write(PANEL_CLOSE, SPEED, true);
+  Servos[PP5].write(PANEL_CLOSE, SPEED, true);
+  Servos[PP6].write(PANEL_CLOSE, SPEED, true);
+
+  delay(500);
+
+  Servos[PP1].detach();
+  Servos[PP2].detach();
+  Servos[PP5].detach();
+  Servos[PP6].detach();
+
+  PiesOpen = false;
+
+  COMMAND_SERIAL.println("Bloom Sequence: Complete");
+  endSequence();
 }
 
 void scream() {
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+  beginSequence(15);
   COMMAND_SERIAL.println("Scream Sequence: Start");
 
   COMMAND_SERIAL.println("*SC00"); // A007C - short circuit all HPs (front)
@@ -752,11 +827,11 @@ void scream() {
   resetPSIs();
 
   COMMAND_SERIAL.println("Scream Sequence: Complete");
-  sequenceRunning = false; 
+  endSequence();
 }
 
 void overload() {
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+  beginSequence(15); // body auto-expires after 15s — matches resetHolos timer
   COMMAND_SERIAL.println("Overload Sequence: Start");
 
   COMMAND_SERIAL.println("*SC00"); // A007C - short circuit all HPs (front)
@@ -771,7 +846,7 @@ void overload() {
 }
 
 void heart() {
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+  beginSequence(10); // body auto-expires after 10s — matches resetHolos timer
   COMMAND_SERIAL.println("Heart: Start");
 
   COMMAND_SERIAL.println("*HPS601"); // rainbow all HPs (front)
@@ -787,7 +862,7 @@ void heart() {
 }
 
 void helloThere() {
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+  beginSequence(4);
   COMMAND_SERIAL.println("Hello There: Start");
   COMMAND_SERIAL.println("@1MHello");
   COMMAND_SERIAL.println("@2MThere");
@@ -809,12 +884,12 @@ void helloThere() {
   Servos[P1].detach();
 
   COMMAND_SERIAL.println("Hello There: Complete");
-  sequenceRunning = false; 
+  endSequence();
 }
 
 // Trigger the Leia sequence
 void leiaMode() {
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
+  beginSequence(36); // body auto-expires after 36s — matches |36 duration on HP/PSI/logic commands
   COMMAND_SERIAL.println("Leia Sequence: Start");
 
   COMMAND_SERIAL.println("@HPS101|36"); // S1 - front HP Leia LED sequence
@@ -827,13 +902,6 @@ void leiaMode() {
   delay(500);
 
   COMMAND_SERIAL.println("Leia Sequence: Complete");
-  sequenceRunning = false;
-}
-
-void toggleMuse() {
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board     
-  COMMAND_SERIAL.println("Toggling muse");
-  sendToBody("MUSE");
   sequenceRunning = false;
 }
 
@@ -862,7 +930,7 @@ void resetBody() {
 
 void resetAll() {
 
-  sequenceRunning = true; // turn on STATUS LED so we can visually see we got the command on the board 
+  beginSequence(4);
 
   COMMAND_SERIAL.println("Reset Dome Panels/Holos");
 
@@ -924,7 +992,7 @@ void resetAll() {
   resetPSIs();
   resetBody();
 
-  sequenceRunning = false;
+  endSequence();
 }
 
 //----------------------------------------------------------------------------
@@ -959,12 +1027,12 @@ void runCommand(const char* cmd)
     helloThere();
   } else if (strcmp(cmd, "SCREAM") == 0) {
     scream();
-  } else if (strcmp(cmd, "MUSE") == 0) {
-    toggleMuse();
   } else if (strcmp(cmd, "FLUTTER") == 0) {
     flutter();
   } else if (strcmp(cmd, "OVERLOAD") == 0) {
     overload();
+  } else if (strcmp(cmd, "BLOOM") == 0) {
+    bloom();
   }
 }
 
