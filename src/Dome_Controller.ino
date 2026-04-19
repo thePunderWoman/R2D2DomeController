@@ -831,18 +831,92 @@ void scream() {
 }
 
 void overload() {
-  beginSequence(15); // body auto-expires after 15s — matches resetHolos timer
+  beginSequence(12);
   COMMAND_SERIAL.println("Overload Sequence: Start");
 
-  COMMAND_SERIAL.println("*SC00"); // A007C - short circuit all HPs (front)
-  COMMAND_SERIAL.println("4T4"); // PSI Pro
-  COMMAND_SERIAL.println("5T4"); // PSO Pro
-  COMMAND_SERIAL.println("0T4"); // astropixels
+  COMMAND_SERIAL.println("*SC00"); // short circuit all HPs
+  COMMAND_SERIAL.println("4T4");   // PSI Pro
+  COMMAND_SERIAL.println("5T4");   // PSO Pro
+  COMMAND_SERIAL.println("0T4");   // astropixels
   sendToBody("OVERLOAD");
-  callAfterDuration(resetHolos, 15);
+
+  Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP2].attach(PP2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP5].attach(PP5_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP6].attach(PP6_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P2].attach(P2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P3].attach(P3_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P4].attach(P4_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P7].attach(P7_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P10].attach(P10_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+
+  // Spasm burst: panels fling open in scrambled order with tiny stagger
+  randomSeed(analogRead(0));
+  static const uint8_t scramble[] = { P3,PP2,P10,PP6,P1,P7,PP1,P11,P2,PP5,P13,P4 };
+  for (uint8_t i = 0; i < 12; i++) {
+    Servos[scramble[i]].write(PANEL_OPEN, FASTSPEED);
+    delay(random(10, 35));
+  }
+
+  // Chaos loop: ~8 seconds of random panels snapping to random positions,
+  // with periodic dome twitches alternating +/- at a random arc up to 20 degrees.
+  static const int positions[] = { PANEL_OPEN, PANEL_HALFWAY, PANEL_PARTOPEN, PANEL_CLOSE };
+  unsigned long chaosEnd = millis() + 8000;
+  unsigned long domeNextAt = millis() + random(600, 1400);
+  bool domePositive = true;
+  while (millis() < chaosEnd) {
+    uint8_t panel = random(12);
+    int pos = positions[random(4)];
+    Servos[panel].write(pos, FASTSPEED);
+
+    if (millis() >= domeNextAt) {
+      int angle = random(1, 21);
+      COMMAND_SERIAL.print(domePositive ? "dome=+" : "dome=-");
+      COMMAND_SERIAL.println(angle);
+      domePositive = !domePositive;
+      domeNextAt = millis() + random(600, 1400);
+    }
+
+    delay(random(40, 180));
+  }
+
+  // Slam everything closed
+  Servos[PP1].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP2].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP5].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP6].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P1].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P2].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P3].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P4].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P7].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P10].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P11].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P13].write(PANEL_CLOSE, FASTSPEED);
+  delay(1500);
+
+  Servos[PP1].detach();
+  Servos[PP2].detach();
+  Servos[PP5].detach();
+  Servos[PP6].detach();
+  Servos[P1].detach();
+  Servos[P2].detach();
+  Servos[P3].detach();
+  Servos[P4].detach();
+  Servos[P7].detach();
+  Servos[P10].detach();
+  Servos[P11].detach();
+  Servos[P13].detach();
+
+  resetHolos();
+  resetLogics();
+  resetPSIs();
 
   COMMAND_SERIAL.println("Overload Sequence: Complete");
-  sequenceRunning = false; 
+  endSequence();
 }
 
 void heart() {
