@@ -1088,6 +1088,116 @@ void resetAll() {
   endSequence();
 }
 
+void cantina() {
+  beginSequence(17); // 15s song + close buffer
+  COMMAND_SERIAL.println("Cantina: Start");
+  sendToBody("CANTINA");
+
+  COMMAND_SERIAL.println("1T13"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("2T13"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("3T13"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("4T13"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("5T13"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("*HPS601"); // rainbow all HPs (front)
+  COMMAND_SERIAL.println("*HPS602"); // (rear)
+  COMMAND_SERIAL.println("*HPS603"); // (top)
+
+  Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP2].attach(PP2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP5].attach(PP5_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[PP6].attach(PP6_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P2].attach(P2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P3].attach(P3_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P4].attach(P4_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P7].attach(P7_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P10].attach(P10_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+
+  // 130 BPM = ~923ms per 2 beats — matches body controller timing exactly.
+  // Pie group A (PP1+PP5) alternates with group B (PP2+PP6).
+  // Low group A (P1+P3+P7+P11) alternates with group B (P2+P4+P10+P13).
+  //
+  // Sync: dome waits 100ms, body waits 88ms. BD:CANTINA takes ~12ms to
+  // transmit at 9600 baud, so both loops start at T=100ms from dome's clock.
+  const unsigned long BEAT_MS = 923;
+  const unsigned long DURATION = 15000;
+  waitTime(100);
+  bool evenOpen = true;
+  unsigned long endTime = millis() + DURATION;
+
+  while (millis() < endTime) {
+    if (evenOpen) {
+      Servos[PP1].write(PANEL_OPEN,  SPEED);
+      Servos[PP5].write(PANEL_OPEN,  SPEED);
+      Servos[PP2].write(PANEL_CLOSE, SPEED);
+      Servos[PP6].write(PANEL_CLOSE, SPEED);
+      Servos[P1].write(PANEL_OPEN,   SPEED);
+      Servos[P3].write(PANEL_OPEN,   SPEED);
+      Servos[P7].write(PANEL_OPEN,   SPEED);
+      Servos[P11].write(PANEL_OPEN,  SPEED);
+      Servos[P2].write(PANEL_CLOSE,  SPEED);
+      Servos[P4].write(PANEL_CLOSE,  SPEED);
+      Servos[P10].write(PANEL_CLOSE, SPEED);
+      Servos[P13].write(PANEL_CLOSE, SPEED);
+    } else {
+      Servos[PP1].write(PANEL_CLOSE, SPEED);
+      Servos[PP5].write(PANEL_CLOSE, SPEED);
+      Servos[PP2].write(PANEL_OPEN,  SPEED);
+      Servos[PP6].write(PANEL_OPEN,  SPEED);
+      Servos[P1].write(PANEL_CLOSE,  SPEED);
+      Servos[P3].write(PANEL_CLOSE,  SPEED);
+      Servos[P7].write(PANEL_CLOSE,  SPEED);
+      Servos[P11].write(PANEL_CLOSE, SPEED);
+      Servos[P2].write(PANEL_OPEN,   SPEED);
+      Servos[P4].write(PANEL_OPEN,   SPEED);
+      Servos[P10].write(PANEL_OPEN,  SPEED);
+      Servos[P13].write(PANEL_OPEN,  SPEED);
+    }
+    evenOpen = !evenOpen;
+    waitTime(BEAT_MS);
+  }
+
+  Servos[PP1].write(PANEL_CLOSE, SPEED, true);
+  Servos[PP2].write(PANEL_CLOSE, SPEED, true);
+  Servos[PP5].write(PANEL_CLOSE, SPEED, true);
+  Servos[PP6].write(PANEL_CLOSE, SPEED, true);
+  Servos[P1].write(PANEL_CLOSE,  SPEED, true);
+  Servos[P2].write(PANEL_CLOSE,  SPEED, true);
+  Servos[P3].write(PANEL_CLOSE,  SPEED, true);
+  Servos[P4].write(PANEL_CLOSE,  SPEED, true);
+  Servos[P7].write(PANEL_CLOSE,  SPEED, true);
+  Servos[P10].write(PANEL_CLOSE, SPEED, true);
+  Servos[P11].write(PANEL_CLOSE, SPEED, true);
+  Servos[P13].write(PANEL_CLOSE, SPEED, true);
+
+  delay(500);
+
+  Servos[PP1].detach();
+  Servos[PP2].detach();
+  Servos[PP5].detach();
+  Servos[PP6].detach();
+  Servos[P1].detach();
+  Servos[P2].detach();
+  Servos[P3].detach();
+  Servos[P4].detach();
+  Servos[P7].detach();
+  Servos[P10].detach();
+  Servos[P11].detach();
+  Servos[P13].detach();
+
+  PiesOpen = false;
+  AllOpen = false;
+  LowOpen = false;
+  resetPSIs();
+  resetLogics();
+  resetHolos();
+
+  COMMAND_SERIAL.println("Cantina: Complete");
+  endSequence();
+}
+
 //----------------------------------------------------------------------------
 //  Delay function
 //----------------------------------------------------------------------------
@@ -1126,6 +1236,8 @@ void runCommand(const char* cmd)
     overload();
   } else if (strcmp(cmd, "BLOOM") == 0) {
     bloom();
+  } else if (strcmp(cmd, "CANTINA") == 0) {
+    cantina();
   }
 }
 
