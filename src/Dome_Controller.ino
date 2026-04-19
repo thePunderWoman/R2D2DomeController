@@ -928,10 +928,29 @@ void heart() {
   COMMAND_SERIAL.println("*HPS603"); // (top)
   COMMAND_SERIAL.println("4T7");
   COMMAND_SERIAL.println("@1MYou're Wonderful");
+  sendToBody("HEART");
 
   callAfterDuration(resetHolos, 10);
 
   COMMAND_SERIAL.println("Heart: Complete");
+  sequenceRunning = false;
+}
+
+void alarm() {
+  beginSequence(10); // body auto-expires after 10s — matches resetHolos timer
+  COMMAND_SERIAL.println("Alarm: Start");
+
+  COMMAND_SERIAL.println("*HPF00312"); // pulse front HP
+  COMMAND_SERIAL.println("*HPR00312"); // pulse rear HP
+  COMMAND_SERIAL.println("*HPT00312"); // pulse top HP
+  COMMAND_SERIAL.println("0T3"); // all logics to alarm
+  COMMAND_SERIAL.println("4T3"); // PSI to alarm
+  COMMAND_SERIAL.println("5T3"); // PSI to alarm
+  sendToBody("ALARM");
+
+  callAfterDuration(resetAll, 10);
+
+  COMMAND_SERIAL.println("Alarm: Complete");
   sequenceRunning = false;
 }
 

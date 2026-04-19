@@ -60,7 +60,7 @@ DM:COMMAND
 | `DM:HELLO` | "Hello There" — P1 waves, marquee message |
 | `DM:SCREAM` | Scream sequence — all panels open, holos flash, body scream audio |
 | `DM:FLUTTER` | Flutter all panels |
-| `DM:MUSE` | Toggle Muse mode (body controller) |
+| `DM:BLOOM` | Bloom pie panels |
 
 ## Non-blocking holo timer
 
