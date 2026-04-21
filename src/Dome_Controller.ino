@@ -105,8 +105,8 @@ void sendToBody(const char* cmd) {
 // auto animations while seqon is active.
 void beginSequence(unsigned int seconds) {
   sequenceRunning = true;
-  COMMAND_SERIAL.print("dome=seqon,");
-  COMMAND_SERIAL.println(seconds);
+  String full = String("dome=seqon,") + seconds;
+  COMMAND_SERIAL.println(full);
 }
 
 void endSequence() {
@@ -874,8 +874,9 @@ void overload() {
 
     if (millis() >= domeNextAt) {
       int angle = random(1, 21);
-      COMMAND_SERIAL.print(domePositive ? "dome=+" : "dome=-");
-      COMMAND_SERIAL.println(angle);
+      String direction = domePositive ? "dome=+" : "dome=-";
+      String full = String(direction) + String(angle);
+      COMMAND_SERIAL.println(full);
       domePositive = !domePositive;
       domeNextAt = millis() + random(600, 1400);
     }
@@ -927,13 +928,15 @@ void heart() {
   COMMAND_SERIAL.println("*HPS602"); // (rear)
   COMMAND_SERIAL.println("*HPS603"); // (top)
   COMMAND_SERIAL.println("4T7");
-  COMMAND_SERIAL.println("@1MYou're Wonderful");
+  COMMAND_SERIAL.println("@1MYou're");
+  COMMAND_SERIAL.println("@2MWonderful");
+  COMMAND_SERIAL.println("@3M");
   sendToBody("HEART");
 
   callAfterDuration(resetHolos, 10);
 
   COMMAND_SERIAL.println("Heart: Complete");
-  sequenceRunning = false;
+  endSequence();
 }
 
 void alarm() {
@@ -951,7 +954,7 @@ void alarm() {
   callAfterDuration(resetAll, 10);
 
   COMMAND_SERIAL.println("Alarm: Complete");
-  sequenceRunning = false;
+  endSequence();
 }
 
 void helloThere() {
@@ -995,7 +998,7 @@ void leiaMode() {
   delay(500);
 
   COMMAND_SERIAL.println("Leia Sequence: Complete");
-  sequenceRunning = false;
+  endSequence();
 }
 
 void resetHolos() {
