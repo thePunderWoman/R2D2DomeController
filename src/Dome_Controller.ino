@@ -63,7 +63,24 @@ VarSpeedServo Servos[NBR_SERVOS];
 #define P10 10  // P10   Low Panel        
 #define P11 4   // P11   Low Panel
 #define P13 11  // P13   Low Panel  
-// #define P11_P13 11  // P11 & P13  Low Panels  
+// #define P11_P13 11  // P11 & P13  Low Panels
+
+// Maps servo index (PP1, P1, etc.) to its physical Arduino pin.
+// Usage: SERVO_PIN[PP1] == PP1_SERVO_PIN
+const uint8_t SERVO_PIN[NBR_SERVOS] = {
+  PP1_SERVO_PIN,  // 0  PP1
+  PP2_SERVO_PIN,  // 1  PP2
+  PP5_SERVO_PIN,  // 2  PP5
+  PP6_SERVO_PIN,  // 3  PP6
+  P11_SERVO_PIN,  // 4  P11
+  P1_SERVO_PIN,   // 5  P1
+  P2_SERVO_PIN,   // 6  P2
+  P3_SERVO_PIN,   // 7  P3
+  P4_SERVO_PIN,   // 8  P4
+  P7_SERVO_PIN,   // 9  P7
+  P10_SERVO_PIN,  // 10 P10
+  P13_SERVO_PIN,  // 11 P13
+};
 
   //  Servos in open position = 2000ms ( 180 degrees )  
 //  Servos in closed position = 1100ms ( 0 degrees ) 
@@ -88,6 +105,7 @@ VarSpeedServo Servos[NBR_SERVOS];
 #define FASTSPEED 255       
 #define OPENSPEED 230   
 #define CLOSESPEED 230
+#define OVERLOAD_DRIFT_SPEED 30
 
 // Variables so program knows where things are
 bool PiesOpen=false;
@@ -142,6 +160,36 @@ void easeServosEaseOut(const uint8_t* indices, uint8_t count, int from, int to, 
     }
     delay(stepDelay);
   }
+}
+
+// Fills `out` with `numLower` randomly chosen lower panels and `numPie` randomly chosen
+// pie panels. Returns the total count written. Caller must ensure out[] is large enough
+// (max 12 elements). Uses Fisher-Yates shuffle so no panel repeats within each group.
+uint8_t randomPanels(uint8_t numLower, uint8_t numPie, uint8_t* out) {
+  static const uint8_t lowerPanels[] = { P1, P2, P3, P4, P7, P10, P11, P13 };
+  static const uint8_t piePanels[]   = { PP1, PP2, PP5, PP6 };
+
+  uint8_t lower[8];
+  uint8_t pie[4];
+  memcpy(lower, lowerPanels, sizeof(lower));
+  memcpy(pie,   piePanels,   sizeof(pie));
+
+  for (uint8_t i = 7; i > 0; i--) {
+    uint8_t j = random(i + 1);
+    uint8_t tmp = lower[i]; lower[i] = lower[j]; lower[j] = tmp;
+  }
+  for (uint8_t i = 3; i > 0; i--) {
+    uint8_t j = random(i + 1);
+    uint8_t tmp = pie[i]; pie[i] = pie[j]; pie[j] = tmp;
+  }
+
+  if (numLower > 8) numLower = 8;
+  if (numPie   > 4) numPie   = 4;
+
+  uint8_t total = 0;
+  for (uint8_t i = 0; i < numLower; i++) out[total++] = lower[i];
+  for (uint8_t i = 0; i < numPie;   i++) out[total++] = pie[i];
+  return total;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -854,76 +902,33 @@ void overload() {
   COMMAND_SERIAL.println("0T4");   // astropixels
   sendToBody("OVERLOAD");
 
-  Servos[PP1].attach(PP1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[PP2].attach(PP2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[PP5].attach(PP5_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[PP6].attach(PP6_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P1].attach(P1_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P2].attach(P2_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P3].attach(P3_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P4].attach(P4_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P7].attach(P7_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P10].attach(P10_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
-  Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
+  // Lost-connection drift: each selected panel sluggishly creeps to a random
+  // position up to halfway open, then stops as if it lost signal.
+  uint8_t panels[6];
+  uint8_t count = randomPanels(4, 2, panels);
 
-  // Pick a random subset of 3-5 panels to sluggishly drift, different every run
-  randomSeed(analogRead(0));
-  static const uint8_t allPanels[] = { PP1, PP2, PP5, PP6, P1, P2, P3, P4, P7, P10, P11, P13 };
-  uint8_t shuffled[12];
-  memcpy(shuffled, allPanels, 12);
-  for (uint8_t i = 11; i > 0; i--) {
-    uint8_t j = random(i + 1);
-    uint8_t tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+  for (uint8_t i = 0; i < count; i++) {
+    Servos[panels[i]].attach(SERVO_PIN[panels[i]], PANEL_MIN, PANEL_MAX);
   }
-  uint8_t panelCount = random(3, 6); // 3, 4, or 5 panels
-
-  unsigned long driftEnd = millis() + 8000;
-  unsigned long domeNextAt = millis() + random(1000, 2000);
-  bool domePositive = true;
-
-  while (millis() < driftEnd) {
-    uint8_t panel = shuffled[random(panelCount)];
-    int target = random(PANEL_CLOSE, PANEL_HALFWAY + 1);
-    Servos[panel].write(target, random(15, 50)); // very slow, non-blocking
-
-    if (millis() >= domeNextAt) {
-      int angle = random(1, 11);
-      COMMAND_SERIAL.println(String(domePositive ? "dome=+" : "dome=-") + String(angle));
-      domePositive = !domePositive;
-      domeNextAt = millis() + random(1000, 2000);
-    }
-
-    delay(random(500, 1400));
+  
+  for (uint8_t i = 0; i < count; i++) {
+    int pos = random(PANEL_PARTOPEN, PANEL_HALFWAY + 1);
+    Servos[panels[i]].write(pos, OVERLOAD_DRIFT_SPEED);
+    waitTime(random(400, 900));
   }
 
-  // Slam everything closed
-  Servos[PP1].write(PANEL_CLOSE, FASTSPEED);
-  Servos[PP2].write(PANEL_CLOSE, FASTSPEED);
-  Servos[PP5].write(PANEL_CLOSE, FASTSPEED);
-  Servos[PP6].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P1].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P2].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P3].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P4].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P7].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P10].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P11].write(PANEL_CLOSE, FASTSPEED);
-  Servos[P13].write(PANEL_CLOSE, FASTSPEED);
-  delay(1500);
+  waitTime(2500); // hold the glitched pose
 
-  Servos[PP1].detach();
-  Servos[PP2].detach();
-  Servos[PP5].detach();
-  Servos[PP6].detach();
-  Servos[P1].detach();
-  Servos[P2].detach();
-  Servos[P3].detach();
-  Servos[P4].detach();
-  Servos[P7].detach();
-  Servos[P10].detach();
-  Servos[P11].detach();
-  Servos[P13].detach();
+  // Snap closed
+  for (uint8_t i = 0; i < count; i++) {
+    Servos[panels[i]].write(PANEL_CLOSE, FASTSPEED);
+  }
+
+  waitTime(800);
+
+  for (uint8_t i = 0; i < count; i++) {
+    Servos[panels[i]].detach();
+  }
 
   resetHolos();
   resetLogics();
