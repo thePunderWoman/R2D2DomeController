@@ -130,6 +130,20 @@ void easeServosSineInOut(const uint8_t* indices, uint8_t count, int from, int to
   }
 }
 
+void easeServosEaseOut(const uint8_t* indices, uint8_t count, int from, int to, unsigned int durationMs) {
+  const uint8_t steps = 30;
+  const unsigned int stepDelay = durationMs / steps;
+  for (uint8_t s = 0; s <= steps; s++) {
+    float p = (float)s / steps;
+    float eased = sin(p * M_PI / 2.0);
+    int pos = from + (int)((to - from) * eased);
+    for (uint8_t i = 0; i < count; i++) {
+      Servos[indices[i]].write(pos);
+    }
+    delay(stepDelay);
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   COMMAND_SERIAL.begin(COMMAND_BAUD);   // Start serial port for incoming commands
@@ -648,8 +662,8 @@ void bloom() {
 
   static const uint8_t pies[] = { PP1, PP2, PP5, PP6 };
 
-  // Open all 4 pies together with sine ease in-out
-  easeServosSineInOut(pies, 4, PANEL_CLOSE, PANEL_OPEN, 1200);
+  // Open all 4 pies together with ease-out (fast start, decelerates at top)
+  easeServosEaseOut(pies, 4, PANEL_CLOSE, PANEL_OPEN, 1200);
 
   // Hold at top
   delay(2000);
@@ -663,11 +677,11 @@ void bloom() {
   // Settle
   delay(1000);
 
-  // Snap closed (no ease)
-  Servos[PP1].write(PANEL_CLOSE, SPEED, true);
-  Servos[PP2].write(PANEL_CLOSE, SPEED, true);
-  Servos[PP5].write(PANEL_CLOSE, SPEED, true);
-  Servos[PP6].write(PANEL_CLOSE, SPEED, true);
+  // Close all 4 simultaneously at full speed
+  Servos[PP1].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP2].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP5].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP6].write(PANEL_CLOSE, FASTSPEED, true);
 
   delay(500);
 
@@ -853,35 +867,34 @@ void overload() {
   Servos[P11].attach(P11_SERVO_PIN,PANEL_MIN,PANEL_MAX);
   Servos[P13].attach(P13_SERVO_PIN,PANEL_MIN,PANEL_MAX);
 
-  // Spasm burst: panels fling open in scrambled order with tiny stagger
+  // Pick a random subset of 3-5 panels to sluggishly drift, different every run
   randomSeed(analogRead(0));
-  static const uint8_t scramble[] = { P3,PP2,P10,PP6,P1,P7,PP1,P11,P2,PP5,P13,P4 };
-  for (uint8_t i = 0; i < 12; i++) {
-    Servos[scramble[i]].write(PANEL_OPEN, FASTSPEED);
-    delay(random(10, 35));
+  static const uint8_t allPanels[] = { PP1, PP2, PP5, PP6, P1, P2, P3, P4, P7, P10, P11, P13 };
+  uint8_t shuffled[12];
+  memcpy(shuffled, allPanels, 12);
+  for (uint8_t i = 11; i > 0; i--) {
+    uint8_t j = random(i + 1);
+    uint8_t tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
   }
+  uint8_t panelCount = random(3, 6); // 3, 4, or 5 panels
 
-  // Chaos loop: ~8 seconds of random panels snapping to random positions,
-  // with periodic dome twitches alternating +/- at a random arc up to 20 degrees.
-  static const int positions[] = { PANEL_OPEN, PANEL_HALFWAY, PANEL_PARTOPEN, PANEL_CLOSE };
-  unsigned long chaosEnd = millis() + 8000;
-  unsigned long domeNextAt = millis() + random(600, 1400);
+  unsigned long driftEnd = millis() + 8000;
+  unsigned long domeNextAt = millis() + random(1000, 2000);
   bool domePositive = true;
-  while (millis() < chaosEnd) {
-    uint8_t panel = random(12);
-    int pos = positions[random(4)];
-    Servos[panel].write(pos, FASTSPEED);
+
+  while (millis() < driftEnd) {
+    uint8_t panel = shuffled[random(panelCount)];
+    int target = random(PANEL_CLOSE, PANEL_HALFWAY + 1);
+    Servos[panel].write(target, random(15, 50)); // very slow, non-blocking
 
     if (millis() >= domeNextAt) {
-      int angle = random(1, 21);
-      String direction = domePositive ? "dome=+" : "dome=-";
-      String full = String(direction) + String(angle);
-      COMMAND_SERIAL.println(full);
+      int angle = random(1, 11);
+      COMMAND_SERIAL.println(String(domePositive ? "dome=+" : "dome=-") + String(angle));
       domePositive = !domePositive;
-      domeNextAt = millis() + random(600, 1400);
+      domeNextAt = millis() + random(1000, 2000);
     }
 
-    delay(random(40, 180));
+    delay(random(500, 1400));
   }
 
   // Slam everything closed
@@ -1096,11 +1109,11 @@ void cantina() {
   COMMAND_SERIAL.println("Cantina: Start");
   sendToBody("CANTINA");
 
-  COMMAND_SERIAL.println("1T13"); // Disco Ball PSI pattern
-  COMMAND_SERIAL.println("2T13"); // Disco Ball PSI pattern
-  COMMAND_SERIAL.println("3T13"); // Disco Ball PSI pattern
-  COMMAND_SERIAL.println("4T13"); // Disco Ball PSI pattern
-  COMMAND_SERIAL.println("5T13"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("1T13|15"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("2T13|15"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("3T13|15"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("4T13|15"); // Disco Ball PSI pattern
+  COMMAND_SERIAL.println("5T13|15"); // Disco Ball PSI pattern
   COMMAND_SERIAL.println("*HPS601"); // rainbow all HPs (front)
   COMMAND_SERIAL.println("*HPS602"); // (rear)
   COMMAND_SERIAL.println("*HPS603"); // (top)
@@ -1162,18 +1175,18 @@ void cantina() {
     waitTime(BEAT_MS);
   }
 
-  Servos[PP1].write(PANEL_CLOSE, SPEED, true);
-  Servos[PP2].write(PANEL_CLOSE, SPEED, true);
-  Servos[PP5].write(PANEL_CLOSE, SPEED, true);
-  Servos[PP6].write(PANEL_CLOSE, SPEED, true);
-  Servos[P1].write(PANEL_CLOSE,  SPEED, true);
-  Servos[P2].write(PANEL_CLOSE,  SPEED, true);
-  Servos[P3].write(PANEL_CLOSE,  SPEED, true);
-  Servos[P4].write(PANEL_CLOSE,  SPEED, true);
-  Servos[P7].write(PANEL_CLOSE,  SPEED, true);
-  Servos[P10].write(PANEL_CLOSE, SPEED, true);
-  Servos[P11].write(PANEL_CLOSE, SPEED, true);
-  Servos[P13].write(PANEL_CLOSE, SPEED, true);
+  Servos[PP1].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP2].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP5].write(PANEL_CLOSE, FASTSPEED);
+  Servos[PP6].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P1].write(PANEL_CLOSE,  FASTSPEED);
+  Servos[P2].write(PANEL_CLOSE,  FASTSPEED);
+  Servos[P3].write(PANEL_CLOSE,  FASTSPEED);
+  Servos[P4].write(PANEL_CLOSE,  FASTSPEED);
+  Servos[P7].write(PANEL_CLOSE,  FASTSPEED);
+  Servos[P10].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P11].write(PANEL_CLOSE, FASTSPEED);
+  Servos[P13].write(PANEL_CLOSE, FASTSPEED, true);
 
   delay(500);
 
@@ -1241,6 +1254,8 @@ void runCommand(const char* cmd)
     bloom();
   } else if (strcmp(cmd, "CANTINA") == 0) {
     cantina();
+  } else if (strcmp(cmd, "ALARM") == 0) {
+    alarm();
   }
 }
 
